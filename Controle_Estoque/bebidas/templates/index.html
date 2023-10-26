@@ -47,5 +47,9 @@
             {% endfor %}
         </tbody>
     </table>
+    <!-- Botão para exportar dados para o BigQuery -->
+    <a class="btn btn-success btn-block" href="{% url 'exportar_dados_bigquery' %}"><i class="fa fa-cloud-upload"></i>
+        Exportar dados para BigQuery
+    </a>
 </div>
 {% endblock %}

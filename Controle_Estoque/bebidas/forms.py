@@ -12,6 +12,7 @@ class BebidaForm(forms.ModelForm):
 class VendaForm(forms.ModelForm):
     class Meta:
         model = Venda
-        fields = ['nome', 'quantidade']
+        fields = ['id_bebida', 'quantidade']
+
 
 # form.Form

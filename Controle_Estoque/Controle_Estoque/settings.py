@@ -12,6 +12,8 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 import os.path
 from pathlib import Path
 
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "G:/Outros computadores/Meu laptop (1)/Meu Drive/Univesp/Terceiro Ano/Projeto-Integrador-2-Web-Application-With-API/pi-univesp-402822-464d3910f4a8.json"
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
