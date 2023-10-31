@@ -11,8 +11,9 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 """
 import os.path
 from pathlib import Path
+from django.contrib import messages
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "G:/Outros computadores/Meu laptop (1)/Meu Drive/Univesp/Terceiro Ano/Projeto-Integrador-2-Web-Application-With-API/pi-univesp-402822-464d3910f4a8.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "G:/Outros computadores/Meu laptop (1)/Meu Drive/Univesp/Terceiro Ano/Projeto-Integrador-2-Web-Application-With-API/pii-univesp-6b28e7b546b1.json"
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -52,6 +53,14 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+MESSAGE_TAGS = {
+    messages.DEBUG: 'alert-secondary',
+    messages.INFO: 'alert-info',
+    messages.SUCCESS: 'alert-success',
+    messages.WARNING: 'alert-warning',
+    messages.ERROR: 'alert-danger',
+}
+
 ROOT_URLCONF = 'Controle_Estoque.urls'
 
 TEMPLATES = [
@@ -72,6 +81,8 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'Controle_Estoque.wsgi.application'
 
+
+MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'
 
 # Database
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases

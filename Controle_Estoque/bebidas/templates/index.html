@@ -14,6 +14,7 @@
             Saída de produto
         </a>
     </div>
+    
 </div>
 
 <div class="table-responsive">
@@ -22,19 +23,19 @@
             <tr>
                 <th>Nome</th>
                 <th>Quantidade</th>
-                <th>Preço</th>
+                <th>Preço Unitário</th>
             </tr>
         </thead>
         <tbody>
-            {% for user in users %}
+            {% for bebida in bebidas %} <!-- Alterado 'users' para 'bebidas' -->
             <tr>
-                <td>{{ user.nome|capfirst }}</td>
-                <td>{{ user.quantidade }}</td>
-                <td>{{ user.preco }}</td>
+                <td>{{ bebida.nome|capfirst }}</td> <!-- Alterado 'user.nome' para 'bebida.nome' -->
+                <td>{{ bebida.quantidade }}</td> <!-- Alterado 'user.quantidade' para 'bebida.quantidade' -->
+                <td>{{ bebida.preco_unitario }}</td> <!-- Alterado 'user.preco_unitario' para 'bebida.preco_unitario' -->
                 <td>
                     <div class="btn-group" role="group" aria-label="Basic example">
-                        <a href="{% url 'modificar' user.pk %}" class="btn btn-warning"><i class='fa fa-edit'></i></a>
-                        <a href="{% url 'deletar' user.pk %}" class="btn btn-danger delete-button" onclick="return confirm('Tem certeza que deseja excluir este produto?')"><i class='fa fa-trash-alt'></i></a>
+                        <a href="{% url 'modificar' bebida.pk %}" class="btn btn-warning"><i class='fa fa-edit'></i></a>
+                        <a href="{% url 'deletar' bebida.pk %}" class="btn btn-danger delete-button" onclick="return confirm('Tem certeza que deseja excluir este produto?')"><i class='fa fa-trash-alt'></i></a>
                     </div>
                 </td>
             </tr>
@@ -47,6 +48,16 @@
             {% endfor %}
         </tbody>
     </table>
+    <!-- Adicione este bloco para exibir a mensagem de sucesso -->
+    {% if messages %}
+    <div class="alert alert-success" role="alert">
+        {% if messages %}
+            {% for message in messages %}
+                {{ message|safe }}<br>
+            {% endfor %}
+        {% endif %}
+    </div>
+    {% endif %}
     <!-- Botão para exportar dados para o BigQuery -->
     <a class="btn btn-success btn-block" href="{% url 'exportar_dados_bigquery' %}"><i class="fa fa-cloud-upload"></i>
         Exportar dados para BigQuery

@@ -1,17 +1,21 @@
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from google.cloud import bigquery
-import os
-import sqlite3
-from django.conf import settings
+
 from .forms import BebidaForm, VendaForm
 from .models import Bebidas, Venda
-from google.cloud.bigquery import SchemaField
+from django.conf import settings
+import pandas as pd
+from datetime import datetime
+import json
+from django.core.serializers.json import DjangoJSONEncoder
+import tempfile
+
 
 def index(request):
-    users = Bebidas.objects.all()
+    bebidas = Bebidas.objects.all()
     context = {
-        'users': users
+        'bebidas': bebidas
     }
     return render(request, 'index.html', context)
 
@@ -50,60 +54,98 @@ def delete(request, bebida_id):
     return redirect('index')
 
 def sell(request):
+    produtos_disponiveis = Bebidas.objects.all()
+    
     if request.method == 'POST':
         form = VendaForm(request.POST)
         if form.is_valid():
-            bebida = form.cleaned_data['id_bebida']
+            produto = form.cleaned_data['produto']
             quantidade_vendida = form.cleaned_data['quantidade']
-            if quantidade_vendida <= bebida.quantidade:
-                bebida.quantidade -= quantidade_vendida
-                bebida.save()
-                venda = form.save()  # Salve a venda após a atualização da bebida
-                # Chame a função para exportar dados para o BigQuery
-                return redirect('index')
+            
+            try:
+                bebida = Bebidas.objects.get(pk=produto.id)
+            except Bebidas.DoesNotExist:
+                form.add_error('produto', 'Produto não encontrado.')
+                messages.error(request, 'Produto não encontrado.')
+                return render(request, 'vendas.html', {'form': form, 'produtos': produtos_disponiveis})
+            
+            if quantidade_vendida > 0:
+                if quantidade_vendida <= bebida.quantidade:
+                    data_venda = datetime.now().date()
+                    hora_venda = datetime.now().time()
+                    
+                    bebida.quantidade -= quantidade_vendida
+                    bebida.save()
+                    
+                    venda = Venda(
+                        produto=produto,
+                        quantidade=quantidade_vendida,
+                        data_venda=data_venda,
+                        hora_venda=hora_venda
+                    )
+                    venda.save()
+                    
+                    messages.success(request, 'Venda registrada com sucesso.')
+                    return redirect('index')
+                else:
+                    form.add_error('quantidade', 'Quantidade insuficiente em estoque.')
+                    messages.error(request, 'Quantidade insuficiente em estoque.')
             else:
-                form.add_error('quantidade', 'Quantidade insuficiente em estoque.')
-                messages.error(request, 'Quantidade insuficiente em estoque.')
+                form.add_error('quantidade', 'A quantidade deve ser maior que zero.')
+                messages.error(request, 'A quantidade deve ser maior que zero.')
     else:
         form = VendaForm()
-    context = {'form': form}
-    return render(request, 'vendas.html', context)
+    return render(request, 'vendas.html', {'form': form, 'produtos': produtos_disponiveis})
 
 
 def exportar_dados_bigquery(request):
-    # Consulta para obter os dados da tabela "Venda"
     vendas = Venda.objects.all()
 
-    # Configurações do BigQuery
     client = bigquery.Client()
-    dataset_id = "Vendas"  # Substitua pelo ID do seu conjunto de dados no BigQuery
-    table_id = "Venda"    # Substitua pelo ID da sua tabela no BigQuery
+    dataset_id = "Bonde_Bebidas"
+    table_id = "Vendas"
 
-    # Defina o conjunto de dados e a tabela
     dataset_ref = client.dataset(dataset_id)
     table_ref = dataset_ref.table(table_id)
 
-    # Crie uma lista de dicionários com os dados
-    dados_para_enviar = [
-        {"nome": venda.nome, "quantidade": venda.quantidade, "preco": venda.preco}
-        for venda in vendas
-    ]
+    # Recupere os IDs de venda já exportados para evitar duplicatas
+    vendas_exportadas = set()
+    query = f"SELECT id_venda FROM `{dataset_id}.{table_id}`"
+    query_job = client.query(query)
+    for row in query_job:
+        vendas_exportadas.add(row.id_venda)
 
-    # Defina o esquema da tabela (ajuste o esquema conforme necessário)
-    schema = [
-        SchemaField("nome", "STRING"),
-        SchemaField("quantidade", "INTEGER"),
-        SchemaField("preco", "FLOAT"),
-        # Adicione campos e tipos de dados conforme necessário
-    ]
+    data = []
+    for venda in vendas:
+        if venda.id_venda not in vendas_exportadas:
+            data.append({
+                "id_venda": venda.id_venda,
+                "produto": venda.produto.nome,
+                "quantidade": venda.quantidade,
+                "data_venda": venda.data_venda.strftime('%Y-%m-%d'),
+                "hora_venda": venda.hora_venda.strftime('%H:%M:%S')
+            })
 
-    # Carregue os dados na tabela
-    job_config = bigquery.LoadJobConfig(schema=schema, source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON)
+    if data:
+        job_config = bigquery.LoadJobConfig(
+            source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
+            autodetect=True,
+        )
 
-    load_job = client.load_table_from_json(dados_para_enviar, table_ref, job_config=job_config)
-    load_job.result()  # Aguarda o término do carregamento
+        json_data = [json.dumps(item, cls=DjangoJSONEncoder) for item in data]
+        json_str = "\n".join(json_data)
+        with tempfile.NamedTemporaryFile(mode="w+", delete=False) as temp_file:
+            temp_file.write(json_str)
+            temp_file.close()
+            with open(temp_file.name, "rb") as source_file:
+                load_job = client.load_table_from_file(
+                    source_file, table_ref, job_config=job_config
+                )
 
-    messages.success(request, "Dados enviados com sucesso!")
+        load_job.result()
+
+        messages.success(request, 'Dados exportados com sucesso.')
+    else:
+        messages.warning(request, 'Não há novos dados para exportar.')
 
     return redirect('index')
-
